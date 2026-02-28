@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+    --primary: 173 58% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 215 25% 25%;
+    --muted: 210 15% 93%;
+    --muted-foreground: 215 15% 45%;
+    --accent: 173 45% 92%;
+    --accent-foreground: 173 58% 25%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
+    --ring: 173 58% 39%;
+    --radius: 0.75rem;
+    --status-paid: 152 69% 40%;
+    --status-paid-bg: 152 69% 95%;
+    --status-pending: 38 92% 50%;
+    --status-pending-bg: 38 92% 95%;
+    --status-overdue: 0 72% 51%;
+    --status-overdue-bg: 0 72% 96%;
+    --shadow-lg: 0 10px 15px -3px hsl(215 25% 15% / 0.08), 0 4px 6px -4px hsl(215 25% 15% / 0.05);
+    --shadow-card: 0 1px 3px 0 hsl(215 25% 15% / 0.06), 0 1px 2px -1px hsl(215 25% 15% / 0.06);
+  }
+  .dark {
+    --background: 215 25% 10%;
+    --foreground: 210 20% 98%;
+    --card: 215 25% 13%;
+    --card-foreground: 210 20% 98%;
+    --popover: 215 25% 13%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 173 58% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 20% 18%;
+    --secondary-foreground: 210 20% 90%;
+    --muted: 215 20% 20%;
+    --muted-foreground: 215 15% 60%;
+    --accent: 173 45% 20%;
+    --accent-foreground: 173 58% 80%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 20% 20%;
+    --input: 215 20% 20%;
+    --ring: 173 58% 45%;
+    --status-paid: 152 69% 50%;
+    --status-paid-bg: 152 69% 15%;
+    --status-pending: 38 92% 55%;
+    --status-pending-bg: 38 92% 15%;
+    --status-overdue: 0 72% 55%;
+    --status-overdue-bg: 0 72% 15%;
+  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans antialiased; font-family: 'DM Sans', system-ui, sans-serif; }
+}
