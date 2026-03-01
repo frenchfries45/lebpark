@@ -138,6 +138,10 @@
     "action": {
       "payment_recorded": "Payment recorded",
       "subscriber_added": "New subscriber added"
+    },
+    "tabs": {
+      "activity": "Activity",
+      "collections": "Collections"
     }
   },
   "admin": {
@@ -194,5 +198,14 @@
     "totalCollected": "Total Collected",
     "noData": "No payments found for this period",
     "unknown": "Unknown"
+  },
+  "collections": {
+    "monthTotal": "Month Total",
+    "paymentsCount": "{{count}} payments",
+    "collector": "collector",
+    "collectors": "collectors",
+    "collectedFrom": "Collected from",
+    "total": "Total",
+    "noCollections": "No payments recorded for this month."
   }
 }
