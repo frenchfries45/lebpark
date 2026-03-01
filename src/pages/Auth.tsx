@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Car, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -37,7 +38,6 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate username
     const usernameResult = usernameSchema.safeParse(username);
     if (!usernameResult.success) {
       toast({ title: t("auth.error"), description: t("auth.invalidUsername"), variant: "destructive" });
@@ -51,12 +51,10 @@ export default function Auth() {
     }
 
     setSubmitting(true);
-
     const { error } = await signInWithUsername(username, password);
     if (error) {
       toast({ title: t("auth.error"), description: t("auth.invalidCredentials"), variant: "destructive" });
     }
-
     setSubmitting(false);
   };
 
@@ -71,29 +69,28 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary rounded-lg">
-              <Car className="w-6 h-6 text-primary-foreground" />
+        <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-primary rounded-lg">
+              <Car className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">{t("app.name")}</h1>
-              <p className="text-sm text-muted-foreground">{t("app.description")}</p>
+              <h1 className="text-base sm:text-xl font-bold text-foreground">{t("app.name")}</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">{t("app.description")}</p>
             </div>
           </div>
-          <LanguageSwitcher />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
+      <main className="flex-1 flex items-center justify-center px-4 py-8 sm:py-12">
         <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">
-              {t("auth.signIn")}
-            </CardTitle>
-            <CardDescription>
-              {t("auth.signInDesc")}
-            </CardDescription>
+          <CardHeader className="text-center pb-4">
+            <CardTitle className="text-xl sm:text-2xl">{t("auth.signIn")}</CardTitle>
+            <CardDescription className="text-sm">{t("auth.signInDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -108,8 +105,10 @@ export default function Auth() {
                   required
                   minLength={5}
                   maxLength={10}
+                  className="h-11 text-base"
+                  autoComplete="username"
+                  autoCapitalize="none"
                 />
-                
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">{t("auth.password")}</Label>
@@ -121,9 +120,11 @@ export default function Auth() {
                   placeholder="••••••••"
                   required
                   minLength={6}
+                  className="h-11 text-base"
+                  autoComplete="current-password"
                 />
               </div>
-              <Button type="submit" className="w-full gap-2" disabled={submitting}>
+              <Button type="submit" className="w-full h-11 text-base gap-2 mt-2" disabled={submitting}>
                 {submitting ? (
                   <div className="animate-spin w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full" />
                 ) : (
@@ -132,7 +133,6 @@ export default function Auth() {
                 {t("auth.signIn")}
               </Button>
             </form>
-
           </CardContent>
         </Card>
       </main>
