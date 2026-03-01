@@ -22,6 +22,7 @@ import { EditSubscriberDialog } from "@/components/EditSubscriberDialog";
 import { DeleteSubscriberDialog } from "@/components/DeleteSubscriberDialog";
 import { ManageAccountsDropdown } from "@/components/ManageAccountsDropdown";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Subscriber } from "@/types/subscriber";
 import { Users, CheckCircle, Clock, AlertCircle, DollarSign, Car, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -57,27 +58,23 @@ const Index = () => {
   const [currentUsername, setCurrentUsername] = useState("unknown");
   const { messages: pendingMessages } = usePendingMessages();
 
-  // Set RTL direction based on language
   useEffect(() => {
     document.documentElement.dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = i18n.language;
   }, [i18n.language]);
 
-  // Redirect to auth if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth", { replace: true });
     }
   }, [user, authLoading, navigate]);
 
-  // Redirect backend_admin to their own page
   useEffect(() => {
     if (!roleLoading && isBackendAdmin) {
       navigate("/backend", { replace: true });
     }
   }, [isBackendAdmin, roleLoading, navigate]);
 
-  // Load current username
   useEffect(() => {
     if (user) {
       getUserProfile().then((p) => {
@@ -88,17 +85,13 @@ const Index = () => {
     }
   }, [user]);
 
-  // stats come from useMonthlyStats hook now
-
   const filteredSubscribers = subscribers.filter((subscriber) => {
     const query = searchQuery.toLowerCase();
     const matchesSearch =
       subscriber.name.toLowerCase().includes(query) ||
       subscriber.vehiclePlate.toLowerCase().includes(query) ||
       subscriber.car.toLowerCase().includes(query);
-
     const matchesStatus = statusFilter === "all" || subscriber.status === statusFilter;
-
     return matchesSearch && matchesStatus;
   });
 
@@ -162,7 +155,6 @@ const Index = () => {
 
   const handleAddSubscriber = async (data: Omit<Subscriber, "id" | "createdAt" | "status">) => {
     await addSubscriber(data);
-
     if (user) {
       const profile = await getUserProfile();
       await addLog({
@@ -172,7 +164,6 @@ const Index = () => {
         subscriberName: data.name,
       });
     }
-
     toast({
       title: t("toast.subscriberAdded"),
       description: t("toast.subscriberAddedDesc", { name: data.name }),
@@ -213,25 +204,35 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary rounded-lg">
-                <Car className="w-6 h-6 text-primary-foreground" />
+      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            {/* Logo */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="p-1.5 sm:p-2 bg-primary rounded-lg shrink-0">
+                <Car className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">{t("app.name")}</h1>
-                <p className="text-sm text-muted-foreground">{t("app.description")}</p>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-bold text-foreground leading-tight">{t("app.name")}</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">{t("app.description")}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={isAdmin ? "default" : "secondary"} className="hidden sm:inline-flex">
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              <Badge variant={isAdmin ? "default" : "secondary"} className="hidden md:inline-flex text-xs">
                 {isAdmin ? t("auth.admin") : t("auth.employee")}
               </Badge>
               {isAdmin && <ManageAccountsDropdown />}
               <LanguageSwitcher />
-              <Button variant="ghost" size="icon" onClick={handleSignOut} title={t("auth.signOut")}>
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                title={t("auth.signOut")}
+                className="h-9 w-9"
+              >
                 <LogOut className="w-4 h-4" />
               </Button>
             </div>
@@ -239,11 +240,12 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-24 sm:pb-6">
         {/* Month Selector + Stats Grid */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <MonthSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* Stats: 2 cols on mobile, 3 on tablet, 5 on desktop */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
             <StatsCard title={t("stats.totalSubscribers")} value={statsLoading ? "..." : stats.total} icon={Users} variant="default" />
             <StatsCard title={t("stats.paid")} value={statsLoading ? "..." : stats.paid} icon={CheckCircle} variant="success" />
             <StatsCard title={t("stats.pending")} value={statsLoading ? "..." : stats.pending} icon={Clock} variant="warning" />
@@ -254,6 +256,7 @@ const Index = () => {
               subtitle={t("stats.fromPaidSubscribers")}
               icon={DollarSign}
               variant="success"
+              className="col-span-2 sm:col-span-1"
             />
           </div>
         </div>
@@ -262,19 +265,20 @@ const Index = () => {
         <ActivityLogComponent logs={logs} loading={logsLoading} />
 
         {/* Filters and Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative">
+        <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-4 sm:items-center sm:justify-between">
+          {/* Search + Filter row */}
+          <div className="flex gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-none">
               <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder={t("filters.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="ps-9 w-full sm:w-72"
+                className="ps-9 w-full sm:w-64"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40">
+              <SelectTrigger className="w-[120px] sm:w-36 shrink-0">
                 <SelectValue placeholder={t("filters.filterByStatus")} />
               </SelectTrigger>
               <SelectContent>
@@ -285,9 +289,11 @@ const Index = () => {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Action buttons row */}
           <div className="flex gap-2">
-            <BulkMessageDialog 
-              overdueSubscribers={subscribers.filter(s => s.status === "overdue")} 
+            <BulkMessageDialog
+              overdueSubscribers={subscribers.filter(s => s.status === "overdue")}
               currentUserId={user?.id || ""}
               currentUsername={currentUsername}
             />
@@ -296,22 +302,6 @@ const Index = () => {
         </div>
 
         {/* Subscriber Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSubscribers.map((subscriber) => (
-            <SubscriberCard
-              key={subscriber.id}
-              subscriber={subscriber}
-              isAdmin={isAdmin}
-              hasPendingMessage={pendingMessages.some(m => m.subscriberId === subscriber.id)}
-              onSendReminder={handleSendMessage}
-              onRecordPayment={handleRecordPayment}
-              onViewHistory={handleViewHistory}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4" />
@@ -327,16 +317,32 @@ const Index = () => {
                 : t("empty.addFirst")}
             </p>
           </div>
-        ) : null}
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {filteredSubscribers.map((subscriber) => (
+              <SubscriberCard
+                key={subscriber.id}
+                subscriber={subscriber}
+                isAdmin={isAdmin}
+                hasPendingMessage={pendingMessages.some(m => m.subscriberId === subscriber.id)}
+                onSendReminder={handleSendMessage}
+                onRecordPayment={handleRecordPayment}
+                onViewHistory={handleViewHistory}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        )}
       </main>
 
+      {/* Dialogs */}
       <RecordPaymentDialog
         subscriber={selectedSubscriber}
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
         onRecordPayment={handlePaymentSubmit}
       />
-
       <PaymentHistoryDialog
         subscriber={selectedSubscriber}
         open={historyDialogOpen}
@@ -344,7 +350,6 @@ const Index = () => {
         onDataChanged={refetch}
         isAdmin={isAdmin}
       />
-
       <SendMessageDialog
         subscriber={selectedSubscriber}
         open={messageDialogOpen}
@@ -352,14 +357,12 @@ const Index = () => {
         currentUserId={user?.id || ""}
         currentUsername={currentUsername}
       />
-
       <EditSubscriberDialog
         subscriber={selectedSubscriber}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         onSave={handleEditSave}
       />
-
       <DeleteSubscriberDialog
         subscriber={selectedSubscriber}
         open={deleteDialogOpen}
