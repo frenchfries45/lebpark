@@ -9,26 +9,29 @@ import Install from "./pages/Install";
 import BackendAdmin from "./pages/BackendAdmin";
 import NotFound from "./pages/NotFound";
 import { InstallPrompt } from "./components/InstallPrompt";
+import { ThemeProvider } from "./contexts/ThemeProvider";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/install" element={<Install />} />
-          <Route path="/backend" element={<BackendAdmin />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <InstallPrompt />
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/install" element={<Install />} />
+            <Route path="/backend" element={<BackendAdmin />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <InstallPrompt />
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;
