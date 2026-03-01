@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify caller is authenticated
     const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -41,14 +40,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if caller is admin
-    const { data: isAdmin } = await callerClient.rpc("has_role", {
-      _user_id: callerUser.id,
-      _role: "admin",
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
+    // Allow admin and backend_admin to reset passwords
+    const { data: callerRoleData } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callerUser.id)
+      .single();
+
+    const callerRole = callerRoleData?.role;
+
+    if (callerRole !== "admin" && callerRole !== "backend_admin") {
+      return new Response(JSON.stringify({ error: "Admin or backend access required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -59,28 +65,17 @@ Deno.serve(async (req) => {
     if (!username || !new_password) {
       return new Response(
         JSON.stringify({ error: "Username and new_password are required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (new_password.length < 6) {
       return new Response(
         JSON.stringify({ error: "Password must be at least 6 characters" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    // Find the user by username
     const { data: profile, error: profileError } = await adminClient
       .from("profiles")
       .select("user_id")
@@ -90,47 +85,31 @@ Deno.serve(async (req) => {
     if (profileError || !profile) {
       return new Response(
         JSON.stringify({ error: "User not found" }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Update password using admin API
     const { error: updateError } = await adminClient.auth.admin.updateUserById(
       profile.user_id,
       { password: new_password }
     );
 
     if (updateError) {
-      console.error("Error resetting password:", updateError);
       return new Response(
         JSON.stringify({ error: updateError.message }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Password reset successfully for user: ${username}`);
-
     return new Response(
       JSON.stringify({ success: true, username: username.toLowerCase() }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Unexpected error:", err);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
