@@ -20,7 +20,6 @@ import { SendMessageDialog } from "@/components/SendMessageDialog";
 import { BulkMessageDialog } from "@/components/BulkMessageDialog";
 import { EditSubscriberDialog } from "@/components/EditSubscriberDialog";
 import { DeleteSubscriberDialog } from "@/components/DeleteSubscriberDialog";
-import { ManageAccountsDropdown } from "@/components/ManageAccountsDropdown";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Subscriber } from "@/types/subscriber";
@@ -46,7 +45,7 @@ const Index = () => {
   const { isAdmin, isBackendAdmin, loading: roleLoading } = useUserRole(user?.id);
   const { subscribers, loading, addSubscriber, updateSubscriber, deleteSubscriber, recordPayment, refetch } = useSubscribers();
   const { logs, loading: logsLoading, addLog } = useActivityLogs();
-  const { selectedDate, setSelectedDate, isCurrentMonth, stats, loading: statsLoading } = useMonthlyStats(subscribers);
+  const { selectedDate, setSelectedDate, stats, loading: statsLoading } = useMonthlyStats(subscribers);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -59,7 +58,7 @@ const Index = () => {
   const { messages: pendingMessages } = usePendingMessages();
 
   useEffect(() => {
-    document.documentElement.dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.dir = i18n.language === "ar" ? "rtl" : "ltr";
     document.documentElement.lang = i18n.language;
   }, [i18n.language]);
 
@@ -84,6 +83,16 @@ const Index = () => {
       });
     }
   }, [user]);
+
+  const getUserProfile = async () => {
+    if (!user) return null;
+    const { data } = await supabase
+      .from("profiles")
+      .select("username, display_name")
+      .eq("user_id", user.id)
+      .single();
+    return data;
+  };
 
   const filteredSubscribers = subscribers.filter((subscriber) => {
     const query = searchQuery.toLowerCase();
@@ -120,22 +129,12 @@ const Index = () => {
     setDeleteDialogOpen(true);
   };
 
-  const getUserProfile = async () => {
-    if (!user) return null;
-    const { data } = await supabase
-      .from("profiles")
-      .select("username, display_name")
-      .eq("user_id", user.id)
-      .single();
-    return data;
-  };
-
   const handlePaymentSubmit = async (subscriberId: string, amount: number) => {
     const profile = user ? await getUserProfile() : null;
     const username = profile?.username || profile?.display_name || "unknown";
     await recordPayment(subscriberId, amount, username);
-    
-    const subscriber = subscribers.find(s => s.id === subscriberId);
+
+    const subscriber = subscribers.find((s) => s.id === subscriberId);
     if (subscriber && user) {
       await addLog({
         actionType: "payment_recorded",
@@ -170,7 +169,10 @@ const Index = () => {
     });
   };
 
-  const handleEditSave = async (id: string, data: { name: string; phone: string; car: string; vehiclePlate: string; monthlyFee: number }) => {
+  const handleEditSave = async (
+    id: string,
+    data: { name: string; phone: string; car: string; vehiclePlate: string; monthlyFee: number }
+  ) => {
     await updateSubscriber(id, data);
     toast({
       title: t("toast.subscriberUpdated"),
@@ -207,7 +209,7 @@ const Index = () => {
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-2">
-            {/* Logo */}
+            {/* Logo + signed-in user */}
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className="p-1.5 sm:p-2 bg-primary rounded-lg shrink-0">
                 <Car className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
@@ -216,6 +218,18 @@ const Index = () => {
                 <h1 className="text-base sm:text-xl font-bold text-foreground leading-tight">{t("app.name")}</h1>
                 <p className="text-xs text-muted-foreground hidden sm:block">{t("app.description")}</p>
               </div>
+              {currentUsername && currentUsername !== "unknown" && (
+                <div className="hidden sm:flex items-center gap-1.5 ms-1 ps-3 border-s border-border">
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-semibold text-primary uppercase">
+                      {currentUsername.charAt(0)}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium text-foreground capitalize truncate max-w-[100px]">
+                    {currentUsername}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -223,7 +237,6 @@ const Index = () => {
               <Badge variant={isAdmin ? "default" : "secondary"} className="hidden md:inline-flex text-xs">
                 {isAdmin ? t("auth.admin") : t("auth.employee")}
               </Badge>
-              {isAdmin && <ManageAccountsDropdown />}
               <LanguageSwitcher />
               <ThemeToggle />
               <Button
@@ -244,7 +257,6 @@ const Index = () => {
         {/* Month Selector + Stats Grid */}
         <div className="space-y-3 sm:space-y-4">
           <MonthSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
-          {/* Stats: 2 cols on mobile, 3 on tablet, 5 on desktop */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
             <StatsCard title={t("stats.totalSubscribers")} value={statsLoading ? "..." : stats.total} icon={Users} variant="default" />
             <StatsCard title={t("stats.paid")} value={statsLoading ? "..." : stats.paid} icon={CheckCircle} variant="success" />
@@ -266,7 +278,6 @@ const Index = () => {
 
         {/* Filters and Actions */}
         <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-4 sm:items-center sm:justify-between">
-          {/* Search + Filter row */}
           <div className="flex gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:flex-none">
               <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -290,10 +301,9 @@ const Index = () => {
             </Select>
           </div>
 
-          {/* Action buttons row */}
           <div className="flex gap-2">
             <BulkMessageDialog
-              overdueSubscribers={subscribers.filter(s => s.status === "overdue")}
+              overdueSubscribers={subscribers.filter((s) => s.status === "overdue")}
               currentUserId={user?.id || ""}
               currentUsername={currentUsername}
             />
@@ -312,9 +322,7 @@ const Index = () => {
             <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-1">{t("empty.noSubscribersFound")}</h3>
             <p className="text-muted-foreground">
-              {searchQuery || statusFilter !== "all"
-                ? t("empty.adjustSearch")
-                : t("empty.addFirst")}
+              {searchQuery || statusFilter !== "all" ? t("empty.adjustSearch") : t("empty.addFirst")}
             </p>
           </div>
         ) : (
@@ -324,7 +332,7 @@ const Index = () => {
                 key={subscriber.id}
                 subscriber={subscriber}
                 isAdmin={isAdmin}
-                hasPendingMessage={pendingMessages.some(m => m.subscriberId === subscriber.id)}
+                hasPendingMessage={pendingMessages.some((m) => m.subscriberId === subscriber.id)}
                 onSendReminder={handleSendMessage}
                 onRecordPayment={handleRecordPayment}
                 onViewHistory={handleViewHistory}
