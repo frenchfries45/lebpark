@@ -38,93 +38,125 @@ export function SubscriberCard({
 
   return (
     <Card className="overflow-hidden transition-all duration-200 hover:shadow-elevated animate-fade-in">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between mb-4">
+      <CardContent className="p-4 sm:p-5">
+        {/* Header: name + status */}
+        <div className="flex items-start justify-between mb-3 sm:mb-4 gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-foreground text-lg">{subscriber.name}</h3>
+              <h3 className="font-semibold text-foreground text-base sm:text-lg leading-snug">{subscriber.name}</h3>
               {hasPendingMessage && (
-                <Badge variant="secondary" className="gap-1 text-xs bg-amber-100 text-amber-700 border-amber-200">
+                <Badge variant="secondary" className="gap-1 text-xs bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                   <Clock className="w-3 h-3" />
-                  Message Pending
+                  <span className="hidden xs:inline">Message</span> Pending
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground text-sm mt-1">
-              <Phone className="w-3.5 h-3.5" />
-              <span>{formatPhoneForLocale(subscriber.phone, i18n.language)}</span>
+            <div className="flex items-center gap-1.5 text-muted-foreground text-sm mt-0.5">
+              <Phone className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{formatPhoneForLocale(subscriber.phone, i18n.language)}</span>
             </div>
           </div>
           <StatusBadge status={subscriber.status} />
         </div>
 
-        <div className="space-y-3 mb-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Car className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">{t("subscriber.car")}:</span>
-            <span className="font-medium text-foreground">{subscriber.car}</span>
+        {/* Details grid - more compact on mobile */}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4 text-sm">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Car className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground shrink-0">{t("subscriber.car")}:</span>
+            <span className="font-medium text-foreground truncate">{subscriber.car}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <Car className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">{t("subscriber.plate")}:</span>
-            <span className="font-medium text-foreground">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Car className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground shrink-0">{t("subscriber.plate")}:</span>
+            <span className="font-medium text-foreground truncate">
               {formatPlateForLocale(subscriber.vehiclePlate, i18n.language)}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <CreditCard className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">{t("subscriber.monthlyFee")}:</span>
+          <div className="flex items-center gap-1.5 col-span-2 min-w-0">
+            <CreditCard className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground shrink-0">{t("subscriber.monthlyFee")}:</span>
             <span className="font-medium text-foreground">
               {formatCurrencyForLocale(subscriber.monthlyFee, i18n.language)}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">{t("subscriber.lastPaid")}:</span>
-            <span className="font-medium text-foreground">{formatDate(subscriber.lastPaymentDate)}</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground shrink-0 hidden sm:inline">{t("subscriber.lastPaid")}:</span>
+            <span className="text-muted-foreground shrink-0 sm:hidden">Paid:</span>
+            <span className="font-medium text-foreground text-xs sm:text-sm truncate">{formatDate(subscriber.lastPaymentDate)}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">{t("subscriber.validUntil")}:</span>
-            <span className={`font-medium ${subscriber.status === "overdue" ? "text-status-overdue" : "text-foreground"}`}>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground shrink-0 hidden sm:inline">{t("subscriber.validUntil")}:</span>
+            <span className="text-muted-foreground shrink-0 sm:hidden">Until:</span>
+            <span className={`font-medium text-xs sm:text-sm truncate ${subscriber.status === "overdue" ? "text-status-overdue" : "text-foreground"}`}>
               {formatDate(subscriber.validUntil)}
             </span>
           </div>
         </div>
 
-        <div className="flex gap-1.5 pt-3 border-t border-border">
-          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-            <Button size="sm" className="w-full px-3 text-xs whitespace-nowrap" onClick={() => onRecordPayment(subscriber)}>
-              <CreditCard className="w-3.5 h-3.5 me-1 shrink-0" />
+        {/* Action buttons */}
+        <div className="flex gap-2 pt-3 border-t border-border" role="group">
+          {/* Primary actions - stack on very small, side by side otherwise */}
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            <Button
+              size="sm"
+              className="w-full h-10 text-sm font-medium"
+              onClick={() => onRecordPayment(subscriber)}
+            >
+              <CreditCard className="w-4 h-4 me-1.5 shrink-0" />
               {t("actions.recordPayment")}
             </Button>
-            <Button variant="outline" size="sm" className="w-full px-3 text-xs whitespace-nowrap" onClick={() => onSendReminder(subscriber)}>
-              <MessageSquare className="w-3.5 h-3.5 me-1 shrink-0" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-10 text-sm"
+              onClick={() => onSendReminder(subscriber)}
+            >
+              <MessageSquare className="w-4 h-4 me-1.5 shrink-0" />
               {t("actions.sendMessage")}
             </Button>
           </div>
-          {isAdmin && (
-            <div className="flex flex-col gap-1 shrink-0">
-              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onViewHistory(subscriber)}>
-                <History className="w-3.5 h-3.5" />
-              </Button>
-              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onEdit?.(subscriber)}>
-                <Pencil className="w-3.5 h-3.5" />
-              </Button>
-              <Button variant="outline" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => onDelete?.(subscriber)}>
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          )}
-          {!isAdmin && (
-            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0 self-start" onClick={() => onViewHistory(subscriber)}>
+
+          {/* Secondary icon actions */}
+          <div className="flex flex-col gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+              onClick={() => onViewHistory(subscriber)}
+              title={t("actions.viewHistory")}
+            >
               <History className="w-4 h-4" />
             </Button>
-          )}
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => onEdit?.(subscriber)}
+                  title={t("actions.edit")}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                  onClick={() => onDelete?.(subscriber)}
+                  title={t("actions.delete")}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
