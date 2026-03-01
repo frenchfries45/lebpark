@@ -37,7 +37,7 @@
     "pending": "قيد الانتظار",
     "overdue": "متأخر",
     "monthlyRevenue": "الإيرادات الشهرية",
-    "fromPaidSubscribers": "من المشتركين المدفوعين"
+    "fromPaidSubscribers": "من المشتركين الدافعين"
   },
   "subscriber": {
     "name": "الاسم الكامل",
@@ -138,6 +138,10 @@
     "action": {
       "payment_recorded": "تم تسجيل دفعة",
       "subscriber_added": "تم إضافة مشترك جديد"
+    },
+    "tabs": {
+      "activity": "النشاط",
+      "collections": "التحصيلات"
     }
   },
   "admin": {
@@ -194,5 +198,14 @@
     "totalCollected": "إجمالي التحصيل",
     "noData": "لا توجد دفعات لهذه الفترة",
     "unknown": "غير معروف"
+  },
+  "collections": {
+    "monthTotal": "إجمالي الشهر",
+    "paymentsCount": "{{count}} دفعات",
+    "collector": "موظف",
+    "collectors": "موظفين",
+    "collectedFrom": "تم التحصيل من",
+    "total": "المجموع",
+    "noCollections": "لا توجد مدفوعات مسجّلة لهذا الشهر."
   }
 }
