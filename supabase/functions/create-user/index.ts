@@ -40,7 +40,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Allow both admin and backend_admin to create users
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -83,7 +82,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check username not already taken
     const { data: existingProfile } = await adminClient
       .from("profiles")
       .select("id")
@@ -97,7 +95,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate fake internal email — user never sees this
     const generatedEmail = `${username.toLowerCase()}@parkleb.internal`;
 
     const { data: newUser, error: createError } =
@@ -121,17 +118,20 @@ Deno.serve(async (req) => {
       .update({ username: username.toLowerCase() })
       .eq("user_id", newUser.user.id);
 
-    // Set role — default employee, or whatever was passed
+    // Determine the role to assign
     const assignedRole = ["admin", "employee", "backend_admin"].includes(role)
       ? role
       : "employee";
 
-    if (assignedRole !== "employee") {
-      await adminClient
-        .from("user_roles")
-        .update({ role: assignedRole })
-        .eq("user_id", newUser.user.id);
-    }
+    // Use upsert to safely overwrite the default 'employee' role inserted by the
+    // handle_new_user trigger. The trigger fires immediately on auth user creation
+    // and always inserts 'employee' — upsert ensures our intended role wins.
+    await adminClient
+      .from("user_roles")
+      .upsert(
+        { user_id: newUser.user.id, role: assignedRole },
+        { onConflict: "user_id" }
+      );
 
     return new Response(
       JSON.stringify({
