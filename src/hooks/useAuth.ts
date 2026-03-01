@@ -25,54 +25,7 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, username: string, displayName?: string) => {
-    // Check if username is pre-approved
-    const { data: isAllowed, error: allowedError } = await supabase
-      .rpc("is_username_allowed", { lookup_username: username.toLowerCase() });
-
-    if (allowedError || !isAllowed) {
-      return { error: { message: "username_not_allowed" } as any };
-    }
-
-    // Check if username is already taken in profiles
-    const { data: existing } = await supabase
-      .rpc("get_email_by_username", { lookup_username: username.toLowerCase() });
-
-    if (existing) {
-      return { error: { message: "username_taken" } as any };
-    }
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: { display_name: displayName || username },
-      },
-    });
-
-    if (error) return { error };
-
-    // Update the profile with the username and claim it from allowed list
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ username: username.toLowerCase() })
-        .eq("user_id", data.user.id);
-
-      if (profileError) {
-        console.error("Error setting username:", profileError);
-      }
-
-      // Remove from allowed_usernames
-      await supabase.rpc("claim_allowed_username", { claimed_username: username.toLowerCase() });
-    }
-
-    return { error: null };
-  };
-
   const signInWithUsername = async (username: string, password: string) => {
-    // Look up email by username using a secure RPC function (works without auth)
     const { data: email, error: lookupError } = await supabase
       .rpc("get_email_by_username", { lookup_username: username.toLowerCase() });
 
@@ -80,16 +33,6 @@ export function useAuth() {
       return { error: { message: "invalid_credentials" } as any };
     }
 
-    // Sign in with the email found from the profile
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    return { error };
-  };
-
-  const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
@@ -99,5 +42,5 @@ export function useAuth() {
     return { error };
   };
 
-  return { user, session, loading, signUp, signIn, signInWithUsername, signOut };
+  return { user, session, loading, signInWithUsername, signOut };
 }
