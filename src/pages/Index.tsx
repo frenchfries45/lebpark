@@ -262,7 +262,7 @@ const Index = () => {
         </div>
 
         {/* Activity Log */}
-        <ActivityLogComponent logs={logs} loading={logsLoading} />
+        <ActivityLogComponent logs={logs} loading={logsLoading} selectedDate={selectedDate} />
 
         {/* Filters and Actions */}
         <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-4 sm:items-center sm:justify-between">
