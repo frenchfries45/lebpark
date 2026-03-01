@@ -44,13 +44,17 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: callerRoleData } = await adminClient
+    const { data: callerRoleRows } = await adminClient
       .from("user_roles")
       .select("role")
-      .eq("user_id", callerUser.id)
-      .single();
+      .eq("user_id", callerUser.id);
 
-    const callerRole = callerRoleData?.role;
+    const callerRoles = (callerRoleRows ?? []).map((r: any) => r.role);
+    const callerRole = callerRoles.includes("backend_admin")
+      ? "backend_admin"
+      : callerRoles.includes("admin")
+      ? "admin"
+      : callerRoles[0] ?? null;
 
     if (callerRole !== "admin" && callerRole !== "backend_admin") {
       return new Response(JSON.stringify({ error: "Admin or backend access required" }), {
