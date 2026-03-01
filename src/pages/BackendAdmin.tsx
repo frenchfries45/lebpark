@@ -7,8 +7,43 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Car, Phone, MessageSquare, CheckCircle2, Clock, LogOut, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Car,
+  Phone,
+  MessageSquare,
+  CheckCircle2,
+  Clock,
+  LogOut,
+  RefreshCw,
+  X,
+  Users,
+  Send,
+} from "lucide-react";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+
+// ─── Phone normalization ──────────────────────────────────────────────────────
+// - Strip all non-digit chars (except leading +)
+// - +961XXXXXXXX → 961XXXXXXXX
+// - 961XXXXXXXX  → 961XXXXXXXX (unchanged)
+// - 0XXXXXXXX    → 961XXXXXXXX (remove leading 0, prepend 961)
+// - XXXXXXXX     → 961XXXXXXXX (prepend 961)
+function normalizePhone(raw: string): string {
+  let cleaned = raw.replace(/[^\d+]/g, "");
+  if (cleaned.startsWith("+961")) return cleaned.slice(1);
+  if (cleaned.startsWith("961")) return cleaned;
+  if (cleaned.startsWith("0")) return "961" + cleaned.slice(1);
+  return "961" + cleaned;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface BulkGroup {
+  messageText: string;
+  messages: PendingMessage[];
+  requestedBy: string;
+  createdAt: Date;
+}
 
 export default function BackendAdmin() {
   const navigate = useNavigate();
@@ -17,6 +52,8 @@ export default function BackendAdmin() {
   const { messages, loading, markAsSent, refetch } = usePendingMessages();
   const { toast } = useToast();
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [markingGroupIdx, setMarkingGroupIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth", { replace: true });
@@ -28,6 +65,8 @@ export default function BackendAdmin() {
     }
   }, [role, roleLoading, navigate]);
 
+  // ── Individual queue ───────────────────────────────────────────────────────
+
   const handleMarkSent = async (msg: PendingMessage) => {
     setMarkingId(msg.id);
     const profile = user?.email?.split("@")[0] || "backend_admin";
@@ -37,6 +76,66 @@ export default function BackendAdmin() {
     }
     setMarkingId(null);
   };
+
+  const handleDismiss = async (msg: PendingMessage) => {
+    setDismissingId(msg.id);
+    const { error } = await supabase.from("pending_messages").delete().eq("id", msg.id);
+    if (error) {
+      toast({ title: "Error", description: "Could not dismiss the message.", variant: "destructive" });
+    } else {
+      toast({ title: "Dismissed", description: `Request for ${msg.subscriberName} removed.` });
+      refetch();
+    }
+    setDismissingId(null);
+  };
+
+  const handleSendSMS = (msg: PendingMessage) => {
+    const phone = normalizePhone(msg.subscriberPhone);
+    const text = encodeURIComponent(msg.message);
+    window.open(
+      `https://gw3s.broadnet.me:8443/websmpp/websms?user=TapTap&pass=Ab3$kL9x&sid=Test&mno=${phone}&type=1&text=${text}`,
+      "_blank"
+    );
+  };
+
+  // ── Bulk tab ───────────────────────────────────────────────────────────────
+
+  const bulkMessages = messages.filter((m) => m.isBulk);
+
+  // Group by exact message text
+  const bulkGroups: BulkGroup[] = Object.values(
+    bulkMessages.reduce<Record<string, BulkGroup>>((acc, msg) => {
+      const key = msg.message.trim();
+      if (!acc[key]) {
+        acc[key] = { messageText: key, messages: [], requestedBy: msg.requestedByUsername, createdAt: msg.createdAt };
+      }
+      acc[key].messages.push(msg);
+      return acc;
+    }, {})
+  );
+
+  const handleSendBulkGroup = (group: BulkGroup) => {
+    const phones = group.messages.map((m) => normalizePhone(m.subscriberPhone)).join(",");
+    const text = encodeURIComponent(group.messageText);
+    window.open(
+      `https://gw3s.broadnet.me:8443/websmpp/websms?user=TapTap&pass=Ab3$kL9x&sid=Test&mno=${phones}&type=1&text=${text}`,
+      "_blank"
+    );
+  };
+
+  const handleMarkGroupSent = async (group: BulkGroup, idx: number) => {
+    setMarkingGroupIdx(idx);
+    const profile = user?.email?.split("@")[0] || "backend_admin";
+    for (const msg of group.messages) {
+      await markAsSent(msg.id, profile);
+    }
+    toast({ title: "Group Marked as Sent", description: `${group.messages.length} message(s) marked as sent.` });
+    setMarkingGroupIdx(null);
+    refetch();
+  };
+
+  const bulkCount = bulkMessages.length;
+  const queueCount = messages.length;
 
   if (authLoading || roleLoading) {
     return (
@@ -73,111 +172,221 @@ export default function BackendAdmin() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        {/* Summary */}
+        {/* Summary bar */}
         <div className="flex items-center gap-3 mb-6">
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
             <Clock className="w-4 h-4 text-amber-600" />
             <span className="text-sm font-semibold text-amber-700">
-              {loading ? "..." : messages.length} pending message{messages.length !== 1 ? "s" : ""}
+              {loading ? "..." : queueCount} pending message{queueCount !== 1 ? "s" : ""}
             </span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Send each message manually, then mark it as sent.
+          <p className="text-sm text-muted-foreground hidden sm:block">
+            Send each message, then mark as sent. Dismiss duplicates.
           </p>
         </div>
 
-        {/* Messages list */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center py-20">
-            <CheckCircle2 className="w-12 h-12 text-status-paid mx-auto mb-4" />
+            <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground">All clear!</h3>
             <p className="text-muted-foreground mt-1">No pending messages right now.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {messages.map((msg) => (
-              <Card key={msg.id} className="animate-fade-in">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-base">{msg.subscriberName}</CardTitle>
-                    <Badge variant={msg.isBulk ? "secondary" : "outline"} className="text-xs shrink-0 ml-2">
-                      {msg.isBulk ? "Bulk" : "Individual"}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Requested by <span className="font-medium">{msg.requestedByUsername}</span>
-                    {" · "}
-                    {format(msg.createdAt, "MMM d, HH:mm")}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Contact info */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <a
-                        href={`tel:${msg.subscriberPhone}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {msg.subscriberPhone}
-                      </a>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Car className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <span className="font-medium text-foreground">{msg.vehiclePlate}</span>
-                    </div>
-                  </div>
+          <Tabs defaultValue="queue">
+            <TabsList className="mb-6">
+              <TabsTrigger value="queue" className="gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Queue
+                {queueCount > 0 && (
+                  <Badge variant="secondary" className="text-xs h-5 px-1.5">{queueCount}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="bulk" className="gap-2">
+                <Users className="w-4 h-4" />
+                Bulk
+                {bulkCount > 0 && (
+                  <Badge variant="secondary" className="text-xs h-5 px-1.5">{bulkCount}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-                  {/* Message body */}
-                  <div className="bg-muted rounded-lg p-3 text-xs text-foreground leading-relaxed">
-                    {msg.message}
-                  </div>
-
-                  {/* Quick actions */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 text-xs"
-                      onClick={() => {
-                        const phone = msg.subscriberPhone.replace(/[^\d+]/g, "").replace(/^\+/, "");
-                        const text = encodeURIComponent(msg.message);
-                        window.open(`https://wa.me/${phone}?text=${text}`, "_blank");
-                      }}
+            {/* ── Tab: Queue (all individual + bulk cards) ── */}
+            <TabsContent value="queue">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {messages.map((msg) => (
+                  <Card key={msg.id} className="animate-fade-in relative">
+                    {/* Dismiss */}
+                    <button
+                      className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      onClick={() => handleDismiss(msg)}
+                      disabled={dismissingId === msg.id}
+                      title="Dismiss duplicate"
                     >
-                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current text-green-600">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                      </svg>
-                      WhatsApp
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 text-xs"
-                      onClick={() => navigator.clipboard.writeText(msg.message)}
-                    >
-                      Copy Msg
-                    </Button>
-                  </div>
+                      {dismissingId === msg.id ? (
+                        <div className="w-4 h-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                      ) : (
+                        <X className="w-4 h-4" />
+                      )}
+                    </button>
 
-                  {/* Mark as sent */}
-                  <Button
-                    className="w-full gap-2"
-                    size="sm"
-                    disabled={markingId === msg.id}
-                    onClick={() => handleMarkSent(msg)}
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    {markingId === msg.id ? "Marking..." : "Mark as Sent"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <CardHeader className="pb-3 pr-10">
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-base">{msg.subscriberName}</CardTitle>
+                        <Badge variant={msg.isBulk ? "secondary" : "outline"} className="text-xs shrink-0 ml-2">
+                          {msg.isBulk ? "Bulk" : "Individual"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Requested by <span className="font-medium">{msg.requestedByUsername}</span>
+                        {" · "}
+                        {format(msg.createdAt, "MMM d, HH:mm")}
+                      </p>
+                    </CardHeader>
+
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <a href={`tel:${msg.subscriberPhone}`} className="font-medium text-primary hover:underline">
+                            {msg.subscriberPhone}
+                          </a>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Car className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <span className="font-medium text-foreground">{msg.vehiclePlate}</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-muted rounded-lg p-3 text-xs text-foreground leading-relaxed">
+                        {msg.message}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => handleSendSMS(msg)}>
+                          <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                          Send SMS
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => navigator.clipboard.writeText(msg.message)}>
+                          Copy Msg
+                        </Button>
+                      </div>
+
+                      <Button className="w-full gap-2" size="sm" disabled={markingId === msg.id} onClick={() => handleMarkSent(msg)}>
+                        <CheckCircle2 className="w-4 h-4" />
+                        {markingId === msg.id ? "Marking..." : "Mark as Sent"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            {/* ── Tab: Bulk ── */}
+            <TabsContent value="bulk">
+              {bulkGroups.length === 0 ? (
+                <div className="text-center py-20">
+                  <Users className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+                  <p className="text-muted-foreground">No bulk messages pending.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {bulkGroups.map((group, idx) => (
+                    <Card key={idx} className="animate-fade-in">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <Users className="w-4 h-4 text-primary" />
+                              Bulk Group — {group.messages.length} subscriber{group.messages.length !== 1 ? "s" : ""}
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Requested by <span className="font-medium">{group.requestedBy}</span>
+                              {" · "}
+                              {format(group.createdAt, "MMM d, HH:mm")}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="shrink-0">{group.messages.length} recipients</Badge>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="space-y-4">
+                        {/* Message */}
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Message</p>
+                          <div className="bg-muted rounded-lg p-3 text-sm text-foreground leading-relaxed">
+                            {group.messageText}
+                          </div>
+                        </div>
+
+                        {/* Recipients */}
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Recipients</p>
+                          <div className="divide-y divide-border/50 border border-border rounded-lg overflow-hidden">
+                            {group.messages.map((msg) => (
+                              <div key={msg.id} className="flex items-center justify-between px-3 py-2 text-sm bg-card hover:bg-muted/30 transition-colors">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <span className="font-medium text-foreground truncate">{msg.subscriberName}</span>
+                                  <span className="text-muted-foreground text-xs shrink-0">{msg.vehiclePlate}</span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-xs text-muted-foreground font-mono">
+                                    {normalizePhone(msg.subscriberPhone)}
+                                  </span>
+                                  <button
+                                    className="p-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                    onClick={() => handleDismiss(msg)}
+                                    disabled={dismissingId === msg.id}
+                                    title="Remove this recipient"
+                                  >
+                                    {dismissingId === msg.id ? (
+                                      <div className="w-3.5 h-3.5 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                                    ) : (
+                                      <X className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Formatted phone preview */}
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                            Formatted numbers for SMS
+                          </p>
+                          <div className="bg-muted rounded-lg p-3 text-xs font-mono text-foreground break-all leading-relaxed">
+                            {group.messages.map((m) => normalizePhone(m.subscriberPhone)).join(", ")}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <Button className="gap-2" onClick={() => handleSendBulkGroup(group)}>
+                            <Send className="w-4 h-4" />
+                            Send Bulk SMS
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="gap-2"
+                            disabled={markingGroupIdx === idx}
+                            onClick={() => handleMarkGroupSent(group, idx)}
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            {markingGroupIdx === idx ? "Marking..." : "Mark All Sent"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
       </main>
     </div>
