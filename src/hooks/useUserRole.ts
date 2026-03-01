@@ -19,14 +19,19 @@ export function useUserRole(userId: string | undefined) {
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", userId)
-        .single();
+        .eq("user_id", userId);
 
       if (error) {
         console.error("Error fetching user role:", error);
         setRole(null);
+      } else if (!data || data.length === 0) {
+        setRole(null);
       } else {
-        setRole(data.role as AppRole);
+        // Priority: backend_admin > admin > employee
+        const roles = data.map((r) => r.role as AppRole);
+        if (roles.includes("backend_admin")) setRole("backend_admin");
+        else if (roles.includes("admin")) setRole("admin");
+        else setRole("employee");
       }
       setLoading(false);
     };
